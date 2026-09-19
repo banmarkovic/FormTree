@@ -16,7 +16,6 @@ import com.ban.formtree.form.data.local.FormDao
         ResponseEntity::class,
     ],
     version = 1,
-    exportSchema = false,
 )
 @TypeConverters(FormItemTypeConverter::class)
 abstract class FormTreeDatabase : RoomDatabase() {
