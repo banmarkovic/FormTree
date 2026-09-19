@@ -126,5 +126,7 @@ private fun collectEntities(
                 )
             }
         }
+
+        is FormNodeDto.UnknownDto -> Unit
     }
 }

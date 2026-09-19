@@ -48,4 +48,7 @@ sealed interface FormNodeDto {
         @SerialName("content") val content: String,
         @SerialName("response_set") val responseSet: ResponseSetDto,
     ) : FormNodeDto
+
+    @Serializable
+    data object UnknownDto : FormNodeDto
 }

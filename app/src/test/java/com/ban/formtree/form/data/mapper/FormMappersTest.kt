@@ -67,6 +67,7 @@ class FormMappersTest {
                             ),
                         ),
                     ),
+                    FormNodeDto.UnknownDto,
                 ),
             ),
             FormNodeDto.PageDto(id = 7, title = "Second Page"),

@@ -1,6 +1,5 @@
 package com.ban.formtree.form.data.dto
 
-import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -8,7 +7,7 @@ import org.junit.Test
 
 class FormNodeDtoParsingTest {
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = createFormJson()
 
     @Test
     fun `parses pages with nested sections and questions`() {
@@ -58,6 +57,29 @@ class FormNodeDtoParsingTest {
         )
 
         assertEquals(1L, (result.single() as FormNodeDto.PageDto).id)
+    }
+
+    @Test
+    fun `unknown item types fall back to UnknownDto instead of failing`() {
+        val result = json.decodeFromString<List<FormNodeDto>>(
+            """
+            [
+              {
+                "id": 1,
+                "type": "page",
+                "title": "Page",
+                "items": [
+                  {"id": 2, "type": "video", "url": "https://example.com/clip.mp4"},
+                  {"id": 3, "type": "text", "content": "Still parsed"}
+                ]
+              }
+            ]
+            """,
+        )
+
+        val page = result.single() as FormNodeDto.PageDto
+        assertEquals(FormNodeDto.UnknownDto, page.items[0])
+        assertEquals("Still parsed", (page.items[1] as FormNodeDto.TextDto).content)
     }
 
     private companion object {

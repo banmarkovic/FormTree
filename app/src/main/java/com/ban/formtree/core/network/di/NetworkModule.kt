@@ -1,5 +1,6 @@
 package com.ban.formtree.core.network.di
 
+import com.ban.formtree.form.data.dto.createFormJson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,7 +20,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideJson(): Json = Json { ignoreUnknownKeys = true }
+    fun provideJson(): Json = createFormJson()
 
     @Provides
     @Singleton
