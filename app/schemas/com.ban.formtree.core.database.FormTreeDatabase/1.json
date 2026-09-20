@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "3e589f1d3a5336f6650de74e185822e0",
+    "identityHash": "f7d472407ad1ccebec686fb79d3ce8a6",
     "entities": [
       {
         "tableName": "form_items",
@@ -110,12 +110,12 @@
         "indices": [
           {
             "name": "index_response_sets_form_item_id",
-            "unique": false,
+            "unique": true,
             "columnNames": [
               "form_item_id"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_response_sets_form_item_id` ON `${TABLE_NAME}` (`form_item_id`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_response_sets_form_item_id` ON `${TABLE_NAME}` (`form_item_id`)"
           }
         ],
         "foreignKeys": [
@@ -200,7 +200,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3e589f1d3a5336f6650de74e185822e0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f7d472407ad1ccebec686fb79d3ce8a6')"
     ]
   }
 }

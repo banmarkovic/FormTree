@@ -16,7 +16,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index(ResponseSetEntity.COLUMN_FORM_ITEM_ID)],
+    indices = [Index(ResponseSetEntity.COLUMN_FORM_ITEM_ID, unique = true)],
 )
 data class ResponseSetEntity(
     @PrimaryKey

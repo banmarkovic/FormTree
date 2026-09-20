@@ -12,14 +12,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface FormDao {
 
+    @Transaction
     @Query("SELECT * FROM ${FormItemEntity.TABLE_NAME}")
-    fun observeItems(): Flow<List<FormItemEntity>>
-
-    @Query("SELECT * FROM ${ResponseSetEntity.TABLE_NAME}")
-    fun observeResponseSets(): Flow<List<ResponseSetEntity>>
-
-    @Query("SELECT * FROM ${ResponseEntity.TABLE_NAME}")
-    fun observeResponses(): Flow<List<ResponseEntity>>
+    fun observeFormItems(): Flow<List<FormItemWithResponses>>
 
     @Insert
     suspend fun insertItems(items: List<FormItemEntity>)
