@@ -4,17 +4,26 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,15 +47,23 @@ fun FormScreen(
     viewModel: FormViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    FormContent(uiState = uiState, onImageClick = onImageClick)
+    FormContent(
+        uiState = uiState,
+        onImageClick = onImageClick,
+        onResponseClick = viewModel::onResponseClick,
+    )
 }
 
 @Composable
 private fun FormContent(
     uiState: FormUiState,
     onImageClick: (src: String, title: String) -> Unit,
+    onResponseClick: (questionId: Long, responseId: Long) -> Unit,
 ) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.union(WindowInsets.displayCutout),
+    ) { innerPadding ->
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier
@@ -70,7 +88,7 @@ private fun FormContent(
                         is FormListItem.SectionTitle -> SectionTitle(item = item)
                         is FormListItem.TextItem -> TextItem(item = item)
                         is FormListItem.ImageItem -> ImageItem(item = item, onImageClick = onImageClick)
-                        is FormListItem.ChoiceItem -> ChoiceItem(item = item)
+                        is FormListItem.ChoiceItem -> ChoiceItem(item = item, onResponseClick = onResponseClick)
                     }
                 }
             }
@@ -132,25 +150,64 @@ private fun ImageItem(
 }
 
 @Composable
-private fun ChoiceItem(item: FormListItem.ChoiceItem) {
+private fun ChoiceItem(
+    item: FormListItem.ChoiceItem,
+    onResponseClick: (questionId: Long, responseId: Long) -> Unit,
+) {
     Column(modifier = Modifier.depthPadding(item.depth).padding(vertical = 4.dp)) {
         Text(
             text = item.content,
             style = MaterialTheme.typography.bodyLarge,
         )
-        item.options.forEach { option ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.multipleSelection) {
-                    Checkbox(checked = option.isSelected, onCheckedChange = null)
-                } else {
-                    RadioButton(selected = option.isSelected, onClick = null)
-                }
-                Text(
-                    text = option.label,
-                    style = MaterialTheme.typography.bodyMedium,
+        Column(
+            modifier = if (item.multipleSelection) Modifier else Modifier.selectableGroup(),
+        ) {
+            item.options.forEach { option ->
+                ChoiceOptionRow(
+                    option = option,
+                    multipleSelection = item.multipleSelection,
+                    onClick = { onResponseClick(item.id, option.id) },
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ChoiceOptionRow(
+    option: ChoiceOption,
+    multipleSelection: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionModifier = if (multipleSelection) {
+        Modifier.toggleable(
+            value = option.isSelected,
+            role = Role.Checkbox,
+            onValueChange = { onClick() },
+        )
+    } else {
+        Modifier.selectable(
+            selected = option.isSelected,
+            role = Role.RadioButton,
+            onClick = onClick,
+        )
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = interactionModifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = MIN_TOUCH_TARGET_SIZE)
+            .padding(vertical = 4.dp),
+    ) {
+        if (multipleSelection) {
+            Checkbox(checked = option.isSelected, onCheckedChange = null)
+        } else {
+            RadioButton(selected = option.isSelected, onClick = null)
+        }
+        Text(
+            text = option.label,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
@@ -162,6 +219,7 @@ private val ITEM_PADDING = 16.dp
 private val DEPTH_INDENT = 12.dp
 private val IMAGE_PREVIEW_HEIGHT = 120.dp
 private val IMAGE_CORNER_RADIUS = 12.dp
+private val MIN_TOUCH_TARGET_SIZE = 48.dp
 
 @Preview(showBackground = true)
 @Composable
@@ -189,6 +247,7 @@ private fun FormContentPreview() {
                 ),
             ),
             onImageClick = { _, _ -> },
+            onResponseClick = { _, _ -> },
         )
     }
 }

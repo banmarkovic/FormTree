@@ -68,11 +68,59 @@ class FormViewModelTest {
                         ),
                         depth = 1,
                     ),
+                    FormListItem.ChoiceItem(
+                        id = 7,
+                        content = "Which areas were inspected?",
+                        multipleSelection = true,
+                        options = persistentListOf(
+                            ChoiceOption(id = 71, label = "Entrance", isSelected = false),
+                            ChoiceOption(id = 72, label = "Storage", isSelected = false),
+                        ),
+                        depth = 1,
+                    ),
                 ),
                 state.items,
             )
         }
     }
+
+    @Test
+    fun `single selection replaces the previous response and deselects when tapped again`() = runTest {
+        every { formRepository.observeForm() } returns flowOf(FORM_PAGES)
+        coJustRun { formRepository.refreshForm() }
+        val viewModel = FormViewModel(formRepository)
+
+        viewModel.uiState.test {
+            viewModel.onResponseClick(questionId = 6, responseId = 61)
+            assertEquals(setOf(61L), expectMostRecentItem().selectedResponseIds(questionId = 6))
+
+            viewModel.onResponseClick(questionId = 6, responseId = 62)
+            assertEquals(setOf(62L), expectMostRecentItem().selectedResponseIds(questionId = 6))
+
+            viewModel.onResponseClick(questionId = 6, responseId = 62)
+            assertEquals(emptySet<Long>(), expectMostRecentItem().selectedResponseIds(questionId = 6))
+        }
+    }
+
+    @Test
+    fun `multiple selection toggles responses independently`() = runTest {
+        every { formRepository.observeForm() } returns flowOf(FORM_PAGES)
+        coJustRun { formRepository.refreshForm() }
+        val viewModel = FormViewModel(formRepository)
+
+        viewModel.uiState.test {
+            viewModel.onResponseClick(questionId = 7, responseId = 71)
+            viewModel.onResponseClick(questionId = 7, responseId = 72)
+            assertEquals(setOf(71L, 72L), expectMostRecentItem().selectedResponseIds(questionId = 7))
+
+            viewModel.onResponseClick(questionId = 7, responseId = 71)
+            assertEquals(setOf(72L), expectMostRecentItem().selectedResponseIds(questionId = 7))
+        }
+    }
+
+    private fun FormUiState.selectedResponseIds(questionId: Long): Set<Long> =
+        (items.first { it.id == questionId } as FormListItem.ChoiceItem)
+            .options.filter { it.isSelected }.map { it.id }.toSet()
 
     private companion object {
         val FORM_PAGES = listOf(
@@ -107,6 +155,18 @@ class FormViewModelTest {
                             responses = listOf(
                                 Response(id = 61, label = "Yes", score = 1),
                                 Response(id = 62, label = "No", score = null),
+                            ),
+                        ),
+                    ),
+                    FormItem.ChoiceQuestion(
+                        id = 7,
+                        content = "Which areas were inspected?",
+                        responseSet = ResponseSet(
+                            id = 101,
+                            multipleSelection = true,
+                            responses = listOf(
+                                Response(id = 71, label = "Entrance", score = null),
+                                Response(id = 72, label = "Storage", score = null),
                             ),
                         ),
                     ),
