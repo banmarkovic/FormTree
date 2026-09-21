@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">FormTree</string>
     <string name="close">Close</string>
+    <string name="form_load_error">Something went wrong while loading the form</string>
+    <string name="retry">Retry</string>
+    <string name="refresh_failed_notice">Couldn\'t refresh</string>
+    <string name="dismiss">Dismiss</string>
 </resources>

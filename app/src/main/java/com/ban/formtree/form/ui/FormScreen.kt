@@ -1,43 +1,63 @@
 package com.ban.formtree.form.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.ban.formtree.R
 import com.ban.formtree.core.ui.theme.FormTreeTheme
 import kotlinx.collections.immutable.persistentListOf
 
@@ -51,6 +71,8 @@ fun FormScreen(
         uiState = uiState,
         onImageClick = onImageClick,
         onResponseClick = viewModel::onResponseClick,
+        onRetryClick = viewModel::onRetryClick,
+        onRefreshFailedNoticeDismiss = viewModel::onRefreshFailedNoticeDismiss,
     )
 }
 
@@ -59,39 +81,142 @@ private fun FormContent(
     uiState: FormUiState,
     onImageClick: (src: String, title: String) -> Unit,
     onResponseClick: (questionId: Long, responseId: Long) -> Unit,
+    onRetryClick: () -> Unit,
+    onRefreshFailedNoticeDismiss: () -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets.union(WindowInsets.displayCutout),
-    ) { innerPadding ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
+        topBar = {
+            (uiState as? FormUiState.Data)?.let { data ->
+                when {
+                    data.showRefreshFailedNotice -> RefreshFailedNoticeBanner(
+                        onRetryClick = onRetryClick,
+                        onDismissClick = onRefreshFailedNoticeDismiss,
+                    )
+
+                    data.showRefreshIndicator -> RefreshIndicator()
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding,
-            ) {
-                items(
-                    items = uiState.items,
-                    key = { it.id },
-                    contentType = { it::class },
-                ) { item ->
-                    when (item) {
-                        is FormListItem.PageTitle -> PageTitle(item = item)
-                        is FormListItem.SectionTitle -> SectionTitle(item = item)
-                        is FormListItem.TextItem -> TextItem(item = item)
-                        is FormListItem.ImageItem -> ImageItem(item = item, onImageClick = onImageClick)
-                        is FormListItem.ChoiceItem -> ChoiceItem(item = item, onResponseClick = onResponseClick)
+        },
+    ) { innerPadding ->
+        AnimatedContent(
+            targetState = uiState,
+            contentKey = { it::class },
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+        ) { state ->
+            when (state) {
+                FormUiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                FormUiState.Error -> {
+                    RetryError(
+                        onRetryClick = onRetryClick,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                    )
+                }
+
+                is FormUiState.Data -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = innerPadding,
+                    ) {
+                        items(
+                            items = state.items,
+                            key = { it.id },
+                            contentType = { it::class },
+                        ) { item ->
+                            when (item) {
+                                is FormListItem.PageTitle -> PageTitle(item = item)
+                                is FormListItem.SectionTitle -> SectionTitle(item = item)
+                                is FormListItem.TextItem -> TextItem(item = item)
+                                is FormListItem.ImageItem -> ImageItem(item = item, onImageClick = onImageClick)
+                                is FormListItem.ChoiceItem -> ChoiceItem(item = item, onResponseClick = onResponseClick)
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RefreshFailedNoticeBanner(
+    onRetryClick: () -> Unit,
+    onDismissClick: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.statusBars.union(
+                        WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal),
+                    ),
+                )
+                .padding(start = ITEM_PADDING, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.refresh_failed_notice),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onRetryClick) {
+                Text(text = stringResource(R.string.retry))
+            }
+            IconButton(onClick = onDismissClick) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_close_24),
+                    contentDescription = stringResource(R.string.dismiss),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RefreshIndicator() {
+    LinearProgressIndicator(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(
+                WindowInsets.statusBars.union(
+                    WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal),
+                ),
+            ),
+    )
+}
+
+@Composable
+private fun RetryError(
+    onRetryClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier.padding(horizontal = ITEM_PADDING),
+    ) {
+        Text(
+            text = stringResource(R.string.form_load_error),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetryClick) {
+            Text(text = stringResource(R.string.retry))
         }
     }
 }
@@ -226,8 +351,7 @@ private val MIN_TOUCH_TARGET_SIZE = 48.dp
 private fun FormContentPreview() {
     FormTreeTheme {
         FormContent(
-            uiState = FormUiState(
-                isLoading = false,
+            uiState = FormUiState.Data(
                 items = persistentListOf(
                     FormListItem.PageTitle(id = 1, title = "Main Page"),
                     FormListItem.SectionTitle(id = 2, title = "Introduction", depth = 1),
@@ -248,6 +372,22 @@ private fun FormContentPreview() {
             ),
             onImageClick = { _, _ -> },
             onResponseClick = { _, _ -> },
+            onRetryClick = {},
+            onRefreshFailedNoticeDismiss = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun RetryErrorPreview() {
+    FormTreeTheme {
+        FormContent(
+            uiState = FormUiState.Error,
+            onImageClick = { _, _ -> },
+            onResponseClick = { _, _ -> },
+            onRetryClick = {},
+            onRefreshFailedNoticeDismiss = {},
         )
     }
 }

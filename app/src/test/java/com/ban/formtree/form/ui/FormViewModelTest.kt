@@ -7,15 +7,20 @@ import com.ban.formtree.form.domain.model.Response
 import com.ban.formtree.form.domain.model.ResponseSet
 import com.ban.formtree.form.domain.repository.FormRepository
 import com.ban.formtree.testing.MainDispatcherRule
+import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.io.IOException
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -43,9 +48,8 @@ class FormViewModelTest {
         val viewModel = FormViewModel(formRepository)
 
         viewModel.uiState.test {
-            val state = expectMostRecentItem()
+            val state = expectMostRecentItem() as FormUiState.Data
 
-            assertFalse(state.isLoading)
             assertEquals(
                 persistentListOf(
                     FormListItem.PageTitle(id = 1, title = "Main Page"),
@@ -118,8 +122,69 @@ class FormViewModelTest {
         }
     }
 
+    @Test
+    fun `shows a full screen retry error when refresh fails with an empty cache`() = runTest {
+        every { formRepository.observeForm() } returns flowOf(emptyList())
+        coEvery { formRepository.refreshForm() } throws IOException("No network")
+        val viewModel = FormViewModel(formRepository)
+
+        viewModel.uiState.test {
+            assertEquals(FormUiState.Error, expectMostRecentItem())
+
+            viewModel.onRetryClick()
+
+            coVerify(exactly = 2) { formRepository.refreshForm() }
+        }
+    }
+
+    @Test
+    fun `keeps loading until the cache is read even when refresh fails first`() = runTest {
+        val cacheFlow = MutableSharedFlow<List<Page>>()
+        every { formRepository.observeForm() } returns cacheFlow
+        coEvery { formRepository.refreshForm() } throws IOException("No network")
+        val viewModel = FormViewModel(formRepository)
+
+        viewModel.uiState.test {
+            assertEquals(FormUiState.Loading, expectMostRecentItem())
+
+            cacheFlow.emit(emptyList())
+
+            assertEquals(FormUiState.Error, expectMostRecentItem())
+        }
+    }
+
+    @Test
+    fun `shows a refresh indicator while refreshing with cached data`() = runTest {
+        every { formRepository.observeForm() } returns flowOf(FORM_PAGES)
+        coEvery { formRepository.refreshForm() } coAnswers { awaitCancellation() }
+        val viewModel = FormViewModel(formRepository)
+
+        viewModel.uiState.test {
+            val state = expectMostRecentItem() as FormUiState.Data
+            assertTrue(state.showRefreshIndicator)
+            assertFalse(state.showRefreshFailedNotice)
+        }
+    }
+
+    @Test
+    fun `shows a dismissible notice when refresh fails with cached data`() = runTest {
+        every { formRepository.observeForm() } returns flowOf(FORM_PAGES)
+        coEvery { formRepository.refreshForm() } throws IOException("No network")
+        val viewModel = FormViewModel(formRepository)
+
+        viewModel.uiState.test {
+            val state = expectMostRecentItem() as FormUiState.Data
+            assertTrue(state.showRefreshFailedNotice)
+            assertTrue(state.items.isNotEmpty())
+
+            viewModel.onRefreshFailedNoticeDismiss()
+
+            assertFalse((expectMostRecentItem() as FormUiState.Data).showRefreshFailedNotice)
+        }
+    }
+
     private fun FormUiState.selectedResponseIds(questionId: Long): Set<Long> =
-        (items.first { it.id == questionId } as FormListItem.ChoiceItem)
+        ((this as FormUiState.Data).items.first { it.id == questionId } as FormListItem.ChoiceItem)
             .options.filter { it.isSelected }.map { it.id }.toSet()
 
     private companion object {

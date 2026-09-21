@@ -21,38 +21,52 @@ class FormViewModel @Inject constructor(
     private val formRepository: FormRepository,
 ) : ViewModel() {
 
-    private val isRefreshing = MutableStateFlow(true)
+    private val refreshStatus = MutableStateFlow(RefreshStatus.REFRESHING)
     private val selectedResponseIdsByQuestionId = MutableStateFlow<Map<Long, Set<Long>>>(emptyMap())
 
-    private val pages: StateFlow<List<Page>> = formRepository.observeForm()
+    private val pages: StateFlow<List<Page>?> = formRepository.observeForm()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_SHARING_TIMEOUT_MILLIS),
-            initialValue = emptyList(),
+            initialValue = null,
         )
 
     val uiState: StateFlow<FormUiState> = combine(
         pages,
-        isRefreshing,
+        refreshStatus,
         selectedResponseIdsByQuestionId,
-    ) { currentPages, refreshing, selectedResponseIds ->
-        FormUiState(
-            isLoading = refreshing && currentPages.isEmpty(),
-            items = currentPages.toListItems(selectedResponseIds),
-        )
+    ) { currentPages, refreshStatus, selectedResponseIds ->
+        when {
+            currentPages == null -> FormUiState.Loading
+            currentPages.isEmpty() && refreshStatus == RefreshStatus.REFRESHING -> FormUiState.Loading
+            currentPages.isEmpty() && refreshStatus == RefreshStatus.FAILED -> FormUiState.Error
+            else -> FormUiState.Data(
+                items = currentPages.toListItems(selectedResponseIds),
+                showRefreshFailedNotice = refreshStatus == RefreshStatus.FAILED,
+                showRefreshIndicator = refreshStatus == RefreshStatus.REFRESHING,
+            )
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_SHARING_TIMEOUT_MILLIS),
-        initialValue = FormUiState(),
+        initialValue = FormUiState.Loading,
     )
 
     init {
         refresh()
     }
 
+    fun onRetryClick() {
+        refresh()
+    }
+
+    fun onRefreshFailedNoticeDismiss() {
+        refreshStatus.value = RefreshStatus.IDLE
+    }
+
     fun onResponseClick(questionId: Long, responseId: Long) {
         val question = findChoiceQuestion(
-            items = pages.value.flatMap { it.items },
+            items = pages.value.orEmpty().flatMap { it.items },
             questionId = questionId,
         ) ?: return
         selectedResponseIdsByQuestionId.update { selections ->
@@ -78,16 +92,22 @@ class FormViewModel @Inject constructor(
 
     private fun refresh() {
         viewModelScope.launch {
-            isRefreshing.value = true
-            try {
+            refreshStatus.value = RefreshStatus.REFRESHING
+            refreshStatus.value = try {
                 formRepository.refreshForm()
+                RefreshStatus.IDLE
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                // TODO handle error state
+                RefreshStatus.FAILED
             }
-            isRefreshing.value = false
         }
+    }
+
+    private enum class RefreshStatus {
+        REFRESHING,
+        IDLE,
+        FAILED,
     }
 
     private companion object {

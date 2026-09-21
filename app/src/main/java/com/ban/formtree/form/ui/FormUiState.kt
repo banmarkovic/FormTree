@@ -5,10 +5,21 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 @Immutable
-data class FormUiState(
-    val isLoading: Boolean = true,
-    val items: ImmutableList<FormListItem> = persistentListOf(),
-)
+sealed interface FormUiState {
+
+    @Immutable
+    data object Loading : FormUiState
+
+    @Immutable
+    data object Error : FormUiState
+
+    @Immutable
+    data class Data(
+        val items: ImmutableList<FormListItem> = persistentListOf(),
+        val showRefreshFailedNotice: Boolean = false,
+        val showRefreshIndicator: Boolean = false,
+    ) : FormUiState
+}
 
 @Immutable
 sealed interface FormListItem {
