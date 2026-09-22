@@ -21,7 +21,7 @@ class FormViewModel @Inject constructor(
     private val formRepository: FormRepository,
 ) : ViewModel() {
 
-    private val refreshStatus = MutableStateFlow(RefreshStatus.REFRESHING)
+    private val refreshStatus = MutableStateFlow<RefreshStatus>(RefreshStatus.Refreshing)
     private val selectedResponseIdsByQuestionId = MutableStateFlow<Map<Long, Set<Long>>>(emptyMap())
 
     private val pages: StateFlow<List<Page>?> = formRepository.observeForm()
@@ -38,12 +38,14 @@ class FormViewModel @Inject constructor(
     ) { currentPages, refreshStatus, selectedResponseIds ->
         when {
             currentPages == null -> FormUiState.Loading
-            currentPages.isEmpty() && refreshStatus == RefreshStatus.REFRESHING -> FormUiState.Loading
-            currentPages.isEmpty() && refreshStatus == RefreshStatus.FAILED -> FormUiState.Error
+            currentPages.isEmpty() && refreshStatus is RefreshStatus.Refreshing -> FormUiState.Loading
+            currentPages.isEmpty() && refreshStatus is RefreshStatus.Failed ->
+                FormUiState.Error(failedAttempts = refreshStatus.attempts)
+
             else -> FormUiState.Data(
                 items = currentPages.toListItems(selectedResponseIds),
-                showRefreshFailedNotice = refreshStatus == RefreshStatus.FAILED,
-                showRefreshIndicator = refreshStatus == RefreshStatus.REFRESHING,
+                showRefreshFailedNotice = refreshStatus is RefreshStatus.Failed,
+                showRefreshIndicator = refreshStatus is RefreshStatus.Refreshing,
             )
         }
     }.stateIn(
@@ -61,7 +63,7 @@ class FormViewModel @Inject constructor(
     }
 
     fun onRefreshFailedNoticeDismiss() {
-        refreshStatus.value = RefreshStatus.IDLE
+        refreshStatus.value = RefreshStatus.Idle
     }
 
     fun onResponseClick(questionId: Long, responseId: Long) {
@@ -92,22 +94,23 @@ class FormViewModel @Inject constructor(
 
     private fun refresh() {
         viewModelScope.launch {
-            refreshStatus.value = RefreshStatus.REFRESHING
-            refreshStatus.value = try {
+            val previousFailures = (refreshStatus.value as? RefreshStatus.Failed)?.attempts ?: 0
+            refreshStatus.value = RefreshStatus.Refreshing
+            try {
                 formRepository.refreshForm()
-                RefreshStatus.IDLE
+                refreshStatus.value = RefreshStatus.Idle
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                RefreshStatus.FAILED
+                refreshStatus.value = RefreshStatus.Failed(attempts = previousFailures + 1)
             }
         }
     }
 
-    private enum class RefreshStatus {
-        REFRESHING,
-        IDLE,
-        FAILED,
+    private sealed interface RefreshStatus {
+        data object Refreshing : RefreshStatus
+        data object Idle : RefreshStatus
+        data class Failed(val attempts: Int) : RefreshStatus
     }
 
     private companion object {

@@ -11,7 +11,7 @@ sealed interface FormUiState {
     data object Loading : FormUiState
 
     @Immutable
-    data object Error : FormUiState
+    data class Error(val failedAttempts: Int) : FormUiState
 
     @Immutable
     data class Data(

@@ -38,11 +38,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,9 +91,22 @@ private fun FormContent(
     onRetryClick: () -> Unit,
     onRefreshFailedNoticeDismiss: () -> Unit,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val failedAttempts = (uiState as? FormUiState.Error)?.failedAttempts ?: 0
+    var lastAnnouncedAttempt by rememberSaveable { mutableIntStateOf(1) }
+    val retryFailedMessage = stringResource(R.string.refresh_failed_notice)
+    LaunchedEffect(failedAttempts) {
+        val isRepeatedFailure = failedAttempts > lastAnnouncedAttempt
+        lastAnnouncedAttempt = maxOf(failedAttempts, 1)
+        if (isRepeatedFailure) {
+            snackbarHostState.showSnackbar(retryFailedMessage)
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets.union(WindowInsets.displayCutout),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             (uiState as? FormUiState.Data)?.let { data ->
                 when {
@@ -117,7 +137,7 @@ private fun FormContent(
                     }
                 }
 
-                FormUiState.Error -> {
+                is FormUiState.Error -> {
                     RetryError(
                         onRetryClick = onRetryClick,
                         modifier = Modifier
@@ -383,7 +403,7 @@ private fun FormContentPreview() {
 private fun RetryErrorPreview() {
     FormTreeTheme {
         FormContent(
-            uiState = FormUiState.Error,
+            uiState = FormUiState.Error(failedAttempts = 1),
             onImageClick = { _, _ -> },
             onResponseClick = { _, _ -> },
             onRetryClick = {},

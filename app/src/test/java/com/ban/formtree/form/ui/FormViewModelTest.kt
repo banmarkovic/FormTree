@@ -129,10 +129,11 @@ class FormViewModelTest {
         val viewModel = FormViewModel(formRepository)
 
         viewModel.uiState.test {
-            assertEquals(FormUiState.Error, expectMostRecentItem())
+            assertEquals(FormUiState.Error(failedAttempts = 1), expectMostRecentItem())
 
             viewModel.onRetryClick()
 
+            assertEquals(FormUiState.Error(failedAttempts = 2), expectMostRecentItem())
             coVerify(exactly = 2) { formRepository.refreshForm() }
         }
     }
@@ -149,7 +150,7 @@ class FormViewModelTest {
 
             cacheFlow.emit(emptyList())
 
-            assertEquals(FormUiState.Error, expectMostRecentItem())
+            assertEquals(FormUiState.Error(failedAttempts = 1), expectMostRecentItem())
         }
     }
 
