@@ -61,13 +61,15 @@ class FormViewModelTest {
                         title = "Welcome Image",
                         depth = 3,
                     ),
+                    FormListItem.BlockSpacer(id = -4, depth = 2),
+                    FormListItem.BlockSpacer(id = -2, depth = 1),
                     FormListItem.ChoiceItem(
                         id = 6,
                         content = "Pick one",
                         multipleSelection = false,
                         options = persistentListOf(
-                            ChoiceOption(id = 61, label = "Yes", isSelected = false),
-                            ChoiceOption(id = 62, label = "No", isSelected = false),
+                            ChoiceOption(id = 61, label = "Yes", score = 1, isSelected = false),
+                            ChoiceOption(id = 62, label = "No", score = null, isSelected = false),
                         ),
                         depth = 1,
                     ),
@@ -76,11 +78,12 @@ class FormViewModelTest {
                         content = "Which areas were inspected?",
                         multipleSelection = true,
                         options = persistentListOf(
-                            ChoiceOption(id = 71, label = "Entrance", isSelected = false),
-                            ChoiceOption(id = 72, label = "Storage", isSelected = false),
+                            ChoiceOption(id = 71, label = "Entrance", score = null, isSelected = false),
+                            ChoiceOption(id = 72, label = "Storage", score = null, isSelected = false),
                         ),
                         depth = 1,
                     ),
+                    FormListItem.BlockSpacer(id = -1, depth = 0),
                 ),
                 state.items,
             )

@@ -6,4 +6,10 @@
     <string name="refresh_failed_notice">Couldn\'t refresh</string>
     <string name="saved_data_notice">Showing saved data</string>
     <string name="dismiss">Dismiss</string>
+    <string name="item_id_badge">#%1$d</string>
+    <string name="selection_caption">%1$s (%2$s)</string>
+    <string name="selection_none">none selected</string>
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_single">single-select</string>
+    <string name="selection_multi">multi-select</string>
 </resources>

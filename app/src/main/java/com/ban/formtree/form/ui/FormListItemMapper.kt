@@ -19,6 +19,7 @@ fun List<Page>.toListItems(
                 listItems = listItems,
             )
         }
+        listItems += FormListItem.BlockSpacer(id = -page.id, depth = 0)
     }
     return listItems.toImmutableList()
 }
@@ -40,6 +41,7 @@ private fun collectListItems(
                     listItems = listItems,
                 )
             }
+            listItems += FormListItem.BlockSpacer(id = -item.id, depth = depth)
         }
 
         is FormItem.TextQuestion -> {
@@ -65,6 +67,7 @@ private fun collectListItems(
                     ChoiceOption(
                         id = response.id,
                         label = response.label,
+                        score = response.score,
                         isSelected = response.id in selectedResponseIds,
                     )
                 }.toImmutableList(),

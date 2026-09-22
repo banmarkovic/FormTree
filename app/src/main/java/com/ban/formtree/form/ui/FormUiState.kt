@@ -61,12 +61,19 @@ sealed interface FormListItem {
         val options: ImmutableList<ChoiceOption>,
         val depth: Int,
     ) : FormListItem
+
+    @Immutable
+    data class BlockSpacer(
+        override val id: Long,
+        val depth: Int,
+    ) : FormListItem
 }
 
 @Immutable
 data class ChoiceOption(
     val id: Long,
     val label: String,
+    val score: Int?,
     val isSelected: Boolean,
 )
 

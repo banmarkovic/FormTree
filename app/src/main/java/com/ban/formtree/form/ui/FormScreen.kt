@@ -4,38 +4,39 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
@@ -43,6 +44,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +55,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -166,6 +171,7 @@ private fun FormContent(
                                 is FormListItem.TextItem -> TextItem(item = item)
                                 is FormListItem.ImageItem -> ImageItem(item = item, onImageClick = onImageClick)
                                 is FormListItem.ChoiceItem -> ChoiceItem(item = item, onResponseClick = onResponseClick)
+                                is FormListItem.BlockSpacer -> BlockSpacer(item = item)
                             }
                         }
                     }
@@ -247,20 +253,43 @@ private fun RetryError(
 
 @Composable
 private fun PageTitle(item: FormListItem.PageTitle) {
-    Text(
-        text = item.title,
-        style = MaterialTheme.typography.headlineLarge,
-        modifier = Modifier.padding(start = ITEM_PADDING, top = 24.dp, end = ITEM_PADDING, bottom = 8.dp),
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(top = PAGE_SPACING)
+            .depthContent(depth = 0)
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 8.dp),
+    ) {
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        IdBadge(id = item.id)
+    }
 }
 
 @Composable
 private fun SectionTitle(item: FormListItem.SectionTitle) {
-    Text(
-        text = item.title,
-        style = sectionTitleStyle(item.depth),
-        modifier = Modifier.depthPadding(item.depth).padding(top = 16.dp, bottom = 4.dp),
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .sectionHeaderContent(item.depth)
+            .padding(top = 12.dp, bottom = 4.dp),
+    ) {
+        Text(
+            text = item.title,
+            style = sectionTitleStyle(item.depth),
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        IdBadge(id = item.id)
+    }
 }
 
 @Composable
@@ -273,11 +302,21 @@ private fun sectionTitleStyle(depth: Int): TextStyle = when {
 
 @Composable
 private fun TextItem(item: FormListItem.TextItem) {
-    Text(
-        text = item.content,
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.depthPadding(item.depth).padding(vertical = 4.dp),
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .depthContent(depth = item.depth, backgroundDepth = item.depth - 1)
+            .padding(vertical = ITEM_VERTICAL_SPACING),
+    ) {
+        Text(
+            text = item.content,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        IdBadge(id = item.id)
+    }
 }
 
 @Composable
@@ -285,17 +324,32 @@ private fun ImageItem(
     item: FormListItem.ImageItem,
     onImageClick: (src: String, title: String) -> Unit,
 ) {
-    AsyncImage(
-        model = item.src,
-        contentDescription = item.title,
-        contentScale = ContentScale.Fit,
+    Column(
         modifier = Modifier
-            .depthPadding(item.depth)
-            .padding(vertical = 4.dp)
-            .height(IMAGE_PREVIEW_HEIGHT)
-            .clip(RoundedCornerShape(IMAGE_CORNER_RADIUS))
-            .clickable { onImageClick(item.src, item.title) },
-    )
+            .fillMaxWidth()
+            .depthContent(depth = item.depth, backgroundDepth = item.depth - 1)
+            .padding(vertical = ITEM_VERTICAL_SPACING),
+    ) {
+        AsyncImage(
+            model = item.src,
+            contentDescription = item.title,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .height(IMAGE_PREVIEW_HEIGHT)
+                .clip(RoundedCornerShape(IMAGE_CORNER_RADIUS))
+                .clickable { onImageClick(item.src, item.title) },
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            IdBadge(id = item.id)
+        }
+    }
 }
 
 @Composable
@@ -303,31 +357,47 @@ private fun ChoiceItem(
     item: FormListItem.ChoiceItem,
     onResponseClick: (questionId: Long, responseId: Long) -> Unit,
 ) {
-    Column(modifier = Modifier.depthPadding(item.depth).padding(vertical = 4.dp)) {
-        Text(
-            text = item.content,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .depthContent(depth = item.depth, backgroundDepth = item.depth - 1)
+            .padding(vertical = ITEM_VERTICAL_SPACING),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = item.content,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            IdBadge(id = item.id)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = if (item.multipleSelection) Modifier else Modifier.selectableGroup(),
         ) {
             item.options.forEach { option ->
-                ChoiceOptionRow(
+                ChoiceChip(
                     option = option,
                     multipleSelection = item.multipleSelection,
                     onClick = { onResponseClick(item.id, option.id) },
                 )
             }
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        SelectionCaption(item = item)
     }
 }
 
 @Composable
-private fun ChoiceOptionRow(
+private fun ChoiceChip(
     option: ChoiceOption,
     multipleSelection: Boolean,
     onClick: () -> Unit,
 ) {
+    val shape = RoundedCornerShape(percent = 50)
     val interactionModifier = if (multipleSelection) {
         Modifier.toggleable(
             value = option.isSelected,
@@ -341,34 +411,142 @@ private fun ChoiceOptionRow(
             onClick = onClick,
         )
     }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = interactionModifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = MIN_TOUCH_TARGET_SIZE)
-            .padding(vertical = 4.dp),
-    ) {
-        if (multipleSelection) {
-            Checkbox(checked = option.isSelected, onCheckedChange = null)
+    Surface(
+        shape = shape,
+        color = if (option.isSelected) {
+            MaterialTheme.colorScheme.primary
         } else {
-            RadioButton(selected = option.isSelected, onClick = null)
+            MaterialTheme.colorScheme.surface
+        },
+        contentColor = if (option.isSelected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        border = if (option.isSelected) {
+            null
+        } else {
+            BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        },
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .clip(shape)
+            .then(interactionModifier),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = option.label,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            option.score?.let { score ->
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Text(
+                        text = score.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun SelectionCaption(item: FormListItem.ChoiceItem) {
+    val selectedCount = item.options.count { it.isSelected }
+    val countText = if (selectedCount == 0) {
+        stringResource(R.string.selection_none)
+    } else {
+        stringResource(R.string.selection_count, selectedCount)
+    }
+    val typeText = stringResource(
+        if (item.multipleSelection) R.string.selection_multi else R.string.selection_single,
+    )
+    Text(
+        text = stringResource(R.string.selection_caption, countText, typeText),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun BlockSpacer(item: FormListItem.BlockSpacer) {
+    Spacer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(BLOCK_END_SPACING)
+            .hierarchyBands(levels = 0 until item.depth.coerceAtMost(MAX_INDENT_DEPTH)),
+    )
+}
+
+@Composable
+private fun IdBadge(id: Long) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
         Text(
-            text = option.label,
-            style = MaterialTheme.typography.bodyMedium,
+            text = stringResource(R.string.item_id_badge, id),
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
 }
 
-private fun Modifier.depthPadding(depth: Int): Modifier =
-    padding(start = ITEM_PADDING + DEPTH_INDENT * depth.coerceAtMost(MAX_INDENT_DEPTH), end = ITEM_PADDING)
+@Composable
+private fun Modifier.hierarchyBands(levels: IntRange): Modifier {
+    val tint = MaterialTheme.colorScheme.primary.copy(alpha = HIERARCHY_TINT_ALPHA)
+    return drawBehind {
+        for (level in levels) {
+            val startX = if (level == 0) {
+                0f
+            } else {
+                ITEM_PADDING.toPx() + (level - 1) * DEPTH_INDENT.toPx()
+            }
+            drawRect(
+                color = tint,
+                topLeft = Offset(startX, 0f),
+                size = Size(width = size.width - startX, height = size.height),
+            )
+        }
+    }
+}
+
+@Composable
+private fun Modifier.depthContent(depth: Int, backgroundDepth: Int = depth): Modifier {
+    val clampedDepth = depth.coerceAtMost(MAX_INDENT_DEPTH)
+    return hierarchyBands(levels = 0..backgroundDepth.coerceAtMost(MAX_INDENT_DEPTH))
+        .padding(start = ITEM_PADDING + DEPTH_INDENT * clampedDepth, end = ITEM_PADDING)
+}
+
+@Composable
+private fun Modifier.sectionHeaderContent(depth: Int): Modifier {
+    val clampedDepth = depth.coerceAtMost(MAX_INDENT_DEPTH)
+    return hierarchyBands(levels = 0 until clampedDepth)
+        .padding(top = SECTION_SPACING)
+        .hierarchyBands(levels = clampedDepth..clampedDepth)
+        .padding(start = ITEM_PADDING + DEPTH_INDENT * clampedDepth, end = ITEM_PADDING)
+}
 
 private const val MAX_INDENT_DEPTH = 5
+private const val HIERARCHY_TINT_ALPHA = 0.1f
 private val ITEM_PADDING = 16.dp
-private val DEPTH_INDENT = 12.dp
+private val DEPTH_INDENT = 14.dp
+private val PAGE_SPACING = 16.dp
+private val SECTION_SPACING = 12.dp
+private val BLOCK_END_SPACING = 12.dp
+private val ITEM_VERTICAL_SPACING = 12.dp
 private val IMAGE_PREVIEW_HEIGHT = 120.dp
 private val IMAGE_CORNER_RADIUS = 12.dp
-private val MIN_TOUCH_TARGET_SIZE = 48.dp
 
 @Preview(showBackground = true)
 @Composable
@@ -387,8 +565,8 @@ private fun FormContentPreview() {
                         content = "Which areas were inspected?",
                         multipleSelection = true,
                         options = persistentListOf(
-                            ChoiceOption(id = 61, label = "Entrance", isSelected = false),
-                            ChoiceOption(id = 62, label = "Storage", isSelected = true),
+                            ChoiceOption(id = 61, label = "Entrance", score = 1, isSelected = false),
+                            ChoiceOption(id = 62, label = "Storage", score = null, isSelected = true),
                         ),
                         depth = 2,
                     ),
