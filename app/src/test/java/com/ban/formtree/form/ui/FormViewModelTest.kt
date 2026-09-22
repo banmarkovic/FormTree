@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -129,11 +128,11 @@ class FormViewModelTest {
         val viewModel = FormViewModel(formRepository)
 
         viewModel.uiState.test {
-            assertEquals(FormUiState.Error(failedAttempts = 1), expectMostRecentItem())
+            assertEquals(FormUiState.Error(failedRefreshAttempts = 1), expectMostRecentItem())
 
             viewModel.onRetryClick()
 
-            assertEquals(FormUiState.Error(failedAttempts = 2), expectMostRecentItem())
+            assertEquals(FormUiState.Error(failedRefreshAttempts = 2), expectMostRecentItem())
             coVerify(exactly = 2) { formRepository.refreshForm() }
         }
     }
@@ -150,7 +149,7 @@ class FormViewModelTest {
 
             cacheFlow.emit(emptyList())
 
-            assertEquals(FormUiState.Error(failedAttempts = 1), expectMostRecentItem())
+            assertEquals(FormUiState.Error(failedRefreshAttempts = 1), expectMostRecentItem())
         }
     }
 
@@ -163,24 +162,28 @@ class FormViewModelTest {
         viewModel.uiState.test {
             val state = expectMostRecentItem() as FormUiState.Data
             assertTrue(state.showRefreshIndicator)
-            assertFalse(state.showRefreshFailedNotice)
+            assertEquals(0, state.failedRefreshAttempts)
         }
     }
 
     @Test
-    fun `shows a dismissible notice when refresh fails with cached data`() = runTest {
+    fun `counts failed refreshes and clears the notice on dismiss with cached data`() = runTest {
         every { formRepository.observeForm() } returns flowOf(FORM_PAGES)
         coEvery { formRepository.refreshForm() } throws IOException("No network")
         val viewModel = FormViewModel(formRepository)
 
         viewModel.uiState.test {
             val state = expectMostRecentItem() as FormUiState.Data
-            assertTrue(state.showRefreshFailedNotice)
+            assertEquals(1, state.failedRefreshAttempts)
             assertTrue(state.items.isNotEmpty())
+
+            viewModel.onRetryClick()
+
+            assertEquals(2, (expectMostRecentItem() as FormUiState.Data).failedRefreshAttempts)
 
             viewModel.onRefreshFailedNoticeDismiss()
 
-            assertFalse((expectMostRecentItem() as FormUiState.Data).showRefreshFailedNotice)
+            assertEquals(0, (expectMostRecentItem() as FormUiState.Data).failedRefreshAttempts)
         }
     }
 

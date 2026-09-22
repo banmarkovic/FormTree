@@ -92,7 +92,11 @@ private fun FormContent(
     onRefreshFailedNoticeDismiss: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val failedAttempts = (uiState as? FormUiState.Error)?.failedAttempts ?: 0
+    val failedAttempts = when (uiState) {
+        is FormUiState.Error -> uiState.failedRefreshAttempts
+        is FormUiState.Data -> uiState.failedRefreshAttempts
+        FormUiState.Loading -> 0
+    }
     var lastAnnouncedAttempt by rememberSaveable { mutableIntStateOf(1) }
     val retryFailedMessage = stringResource(R.string.refresh_failed_notice)
     LaunchedEffect(failedAttempts) {
@@ -110,7 +114,7 @@ private fun FormContent(
         topBar = {
             (uiState as? FormUiState.Data)?.let { data ->
                 when {
-                    data.showRefreshFailedNotice -> RefreshFailedNoticeBanner(
+                    data.failedRefreshAttempts > 0 -> RefreshFailedNoticeBanner(
                         onRetryClick = onRetryClick,
                         onDismissClick = onRefreshFailedNoticeDismiss,
                     )
@@ -189,7 +193,7 @@ private fun RefreshFailedNoticeBanner(
                 .padding(start = ITEM_PADDING, end = 4.dp, top = 4.dp, bottom = 4.dp),
         ) {
             Text(
-                text = stringResource(R.string.refresh_failed_notice),
+                text = stringResource(R.string.saved_data_notice),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -403,7 +407,7 @@ private fun FormContentPreview() {
 private fun RetryErrorPreview() {
     FormTreeTheme {
         FormContent(
-            uiState = FormUiState.Error(failedAttempts = 1),
+            uiState = FormUiState.Error(failedRefreshAttempts = 1),
             onImageClick = { _, _ -> },
             onResponseClick = { _, _ -> },
             onRetryClick = {},

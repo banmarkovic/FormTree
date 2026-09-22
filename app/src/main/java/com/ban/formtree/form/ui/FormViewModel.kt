@@ -40,11 +40,11 @@ class FormViewModel @Inject constructor(
             currentPages == null -> FormUiState.Loading
             currentPages.isEmpty() && refreshStatus is RefreshStatus.Refreshing -> FormUiState.Loading
             currentPages.isEmpty() && refreshStatus is RefreshStatus.Failed ->
-                FormUiState.Error(failedAttempts = refreshStatus.attempts)
+                FormUiState.Error(failedRefreshAttempts = refreshStatus.attempts)
 
             else -> FormUiState.Data(
                 items = currentPages.toListItems(selectedResponseIds),
-                showRefreshFailedNotice = refreshStatus is RefreshStatus.Failed,
+                failedRefreshAttempts = (refreshStatus as? RefreshStatus.Failed)?.attempts ?: 0,
                 showRefreshIndicator = refreshStatus is RefreshStatus.Refreshing,
             )
         }

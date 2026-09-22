@@ -11,12 +11,12 @@ sealed interface FormUiState {
     data object Loading : FormUiState
 
     @Immutable
-    data class Error(val failedAttempts: Int) : FormUiState
+    data class Error(val failedRefreshAttempts: Int) : FormUiState
 
     @Immutable
     data class Data(
         val items: ImmutableList<FormListItem> = persistentListOf(),
-        val showRefreshFailedNotice: Boolean = false,
+        val failedRefreshAttempts: Int = 0,
         val showRefreshIndicator: Boolean = false,
     ) : FormUiState
 }
