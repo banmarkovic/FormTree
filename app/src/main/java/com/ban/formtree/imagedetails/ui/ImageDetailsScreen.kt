@@ -64,7 +64,7 @@ private fun ImageDetailsContent(
         AsyncImage(
             model = uiState.src,
             contentDescription = uiState.title,
-            contentScale = ContentScale.Fit,
+            contentScale = ContentScale.Inside,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
