@@ -60,8 +60,15 @@ Observe path:  Room ──► domain tree ──► ViewModel ──► UiState 
 
 ## Testing
 
-JVM unit tests only:
-
 ```bash
 ./gradlew :app:testDebugUnitTest   # 17 tests
 ```
+
+A few focused JVM unit tests per layer, each testing behavior at the layer that owns
+it (MockK for seams, Turbine + `runTest` for flows, public APIs only):
+
+- **API boundary** — DTO parsing, including unknown node types
+- **Mappers** — DTO → entity and entity → domain tree transformations
+- **Repository** — refresh and observation behavior over mocked DAO/API seams
+- **ViewModel** — UiState derivation: the loading/error/banner/snackbar matrix,
+  selection toggling, and the cache-read race
